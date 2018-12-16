@@ -66,5 +66,73 @@ Quit the server with CONTROL-C.
 
 
 
+### Weibo App
+
+```shell
+(LearningNLP) $ cd GUI/web
+(LearningNLP) web $ ls
+db.sqlite3  manage.py  web
+(LearningNLP) web $ python manage.py startapp weibo
+(LearningNLP) web $ cat weibo/apps.py
+from django.apps import AppConfig
+
+
+class WeiboConfig(AppConfig):
+    name = 'weibo'
+(LearningNLP) web $ ### install weibo app in django ###
+(LearningNLP) web $ vim web/settings.py
+[...]
+[...]
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+
+    'weibo.apps.WeiboConfig',
+]
+[...]
+[...]
+[ESC] -> [Shift] + [:] -> [w][q] -> [Enter]
+(LearningNLP) web $ vim web/urls.py
+##### use "git diff web/urls.py" for check modified here:
+diff --git a/GUI/web/web/urls.py b/GUI/web/web/urls.py
+index 6ffd0e5..1636722 100644
+--- a/GUI/web/web/urls.py
++++ b/GUI/web/web/urls.py
+@@ -16,6 +16,13 @@ Including another URLconf
+ from django.contrib import admin
+ from django.urls import path
+ 
++from django.urls import include
++from django.http import HttpResponse
++
+ urlpatterns = [
+     path('admin/', admin.site.urls),
++
++    path("", lambda request: HttpResponse("support -> <url>/weibo/ for now")),
++
++    path("weibo/", include("weibo.urls")),
+ ]
+(LearningNLP) web $ 
+(LearningNLP) web $ touch weibo/urls.py
+(LearningNLP) web $ vim weibo/urls.py
+from django.urls import path
+
+from django.http import HttpResponse
+
+urlpatterns = [
+    path("", lambda request: HttpResponse("<h1>Hello Weibo App</h1>")),
+]
+
+(LearningNLP) web $ ### running server to check ###
+(LearningNLP) web $ python manage.py runserver 0.0.0.0:8000
+.........
+Ctrl+C to quit
+(LearningNLP) web $ ## commit here!
+```
+
 
 
