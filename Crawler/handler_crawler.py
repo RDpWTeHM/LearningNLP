@@ -46,6 +46,9 @@ except Exception as err:
 #
 def manage_selenum():
     res = resource_manage.Resource()
+    if __debug__:
+        print("check Singleton> id(res): {}".format(id(res)),
+              file=sys.stderr)
     t = Thread(target=res.manage)
     t.setDaemon(True)
     t.start()

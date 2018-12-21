@@ -53,15 +53,13 @@ def final(cls: T) -> T:
 
 @final
 class Resource(object):
-    def __new__(cls, *args, **kw):  # Singleton
-        if not hasattr(cls, 'instance'):
-            cls.instance = super().__new__(cls, *args, **kw)
-        return cls.instance
-
-    def __init__(self):
-        self.QBrowser = Queue()
-        self._browser_state_Lock = threading.Lock()
-        self._browser_state = {
+    ''' Resource class
+      Issue:
+        -[x] total seems not work! -- don't put share value into __init__
+    '''
+    QBrowser = Queue()
+    _browser_state_Lock = threading.Lock()
+    _browser_state = {
             "MAX_NUM": 4,
             "total": 0,
             #
@@ -75,10 +73,18 @@ class Resource(object):
             #         self._browser_state["lend"]["name"][idx])
             "lend": {"names": [], },
         }
-        self._LEND_TIME_IDX = "time"
+    _LEND_TIME_IDX = "time"
 
-        self.__manage_run_Lock = threading.Lock()
-        self.__manage_run_flag = False
+    __manage_run_Lock = threading.Lock()
+    __manage_run_flag = False
+
+    def __new__(cls, *args, **kw):  # Singleton
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Resource, cls).__new__(cls, *args, **kw)
+        return cls.instance
+
+    def __init__(self):
+        pass
 
     def __mark_lend_browser_for(self, lend_or_gather, id_browser, plend):
         '''need RLock??
@@ -110,6 +116,37 @@ class Resource(object):
         time.sleep(1)
         return browser
 
+    def __do_check_timeout_consider_as_crash(self):
+        with self._browser_state_Lock:
+            if __debug__:
+                print("[Debug] manage -> print _browser_state first",
+                      file=sys.stderr)
+                print("[Debug] manage: self._browser_state: ",
+                      file=sys.stderr)
+                print("\t{!r}\n".format(self._browser_state),
+                      file=sys.stderr)
+
+            _lend = self._browser_state["lend"]
+            if len(_lend["names"]) > 0:
+                for name in _lend["names"]:  # check every browser
+                    # lend timeout?
+                    lend_time = _lend[name][self._LEND_TIME_IDX]
+                    current_time = datetime.now()
+                    # time caculate -> datetime.timedelta
+                    # > 5 min: empiric value
+                    _timeout = 180
+                    if abs((current_time - lend_time).seconds) > _timeout:
+                        if __debug__:
+                            print("timeout {}, do deal with crash {}".format(
+                                _timeout, name), file=sys.stderr)
+                        # this lent browser crash
+                        id_browser = name
+                        self.__mark_lend_browser_for(
+                            "gather", id_browser, _lend)
+                        self._browser_state["total"] -= 1
+            else:  # no lend, no need to do anything
+                pass
+
     #
     # r = Resource()
     # t = Thread(target=r.manage(), etc...); t.start()
@@ -119,38 +156,11 @@ class Resource(object):
             if self.__manage_run_flag:
                 raise RuntimeError("Manage() had been running already!")
             else:  # flas == False, keep run fallow logical.
-                pass
+                self.__manage_run_flag = True
+
         while True:
             sleep(15)  # check every 10 seconds
-            with self._browser_state_Lock:
-                if __debug__:
-                    print("[Debug] manage -> print _browser_state first",
-                          file=sys.stderr)
-                    print("[Debug] manage: self._browser_state: ",
-                          file=sys.stderr)
-                    print("\t{!r}\n".format(self._browser_state),
-                          file=sys.stderr)
-
-                _lend = self._browser_state["lend"]
-                if len(_lend["names"]) > 0:
-                    for name in _lend["names"]:  # check every browser
-                        # lend timeout?
-                        lend_time = _lend[name][self._LEND_TIME_IDX]
-                        current_time = datetime.now()
-                        # time caculate -> datetime.timedelta
-                        # > 5 min: empiric value
-                        if abs((current_time - lend_time).seconds) > 180:
-                            # this lent browser crash
-                            id_browser = name
-                            if False:
-                                self.__mark_lend_browser_for("gather", id_browser, _lend)
-                            else:
-                                plend = _lend
-                                plend["names"].remove(id_browser)
-                                plend.pop(id_browser)
-                            self._browser_state["total"] -= 1
-                else:  # no lend
-                    pass
+            self.__do_check_timeout_consider_as_crash()
 
     # browser = None
     # try:
@@ -161,10 +171,10 @@ class Resource(object):
     #     # ...code...
     #     r.release_browser_handler(browser)
     def acquire_browser_handler_by_create(self, name_id=None):
+        browser = None
         with self._browser_state_Lock:
-            _browser_state = self._browser_state  # little speed up,quick index
             # make sure name_id is only one.
-            if _browser_state["total"] < _browser_state["MAX_NUM"]:
+            if self._browser_state["total"] < self._browser_state["MAX_NUM"]:
                 try:
                     browser = self._create_new_browser()
                 except Exception as err:
@@ -172,34 +182,28 @@ class Resource(object):
                     #
                     # -[o] would cause Lock no-release issue?
                     #
-                    raise Exception("can't create more browser, "
-                                    "reach to MAX Number")
+                    raise Exception("Create new browser issue")
                 else:  # success
                     # Currently identified browser by session id
                     id_browser = browser.session_id
-                    _browser_state["total"] += 1
-                    if False:
-                        self.__mark_lend_browser_for(
-                            "lend", id_browser, _browser_state["lend"])
-                    else:
-                        plend = _browser_state["lend"]
-                        plend["names"].append(id_browser)
-                        plend[id_browser] = {self._LEND_TIME_IDX: datetime.now()}
-
-                    return browser
+                    self._browser_state["total"] += 1
+                    self.__mark_lend_browser_for(
+                        "lend", id_browser, self._browser_state["lend"])
+            else:
+                raise Exception("can't create more browser, "
+                                "reach to MAX Number")
+        if browser:
+            return browser
+        else:
+            raise Exception("should not run here")
 
     def acquire_browser_handler_from_queue(self, name_id=None):
         with self._browser_state_Lock:
             browser = self.QBrowser.get()
             # Currently identified browser by session id
             id_browser = browser.session_id
-            if False:
-                self.__mark_lend_browser_for(
-                    "lend", id_browser, self._browser_state["lend"])
-            else:
-                plend = self._browser_state["lend"]
-                plend["names"].append(id_browser)
-                plend[id_browser] = {self._LEND_TIME_IDX: datetime.now()}
+            self.__mark_lend_browser_for(
+                "lend", id_browser, self._browser_state["lend"])
 
             return browser
 
@@ -208,13 +212,8 @@ class Resource(object):
             self.QBrowser.put(browser)
             # Currently identified browser by session id
             id_browser = browser.session_id
-            if False:
-                self.__mark_lend_browser_for(
-                    "gather", id_browser, self._browser_state["lend"])
-            else:
-                plend = self._browser_state["lend"]
-                plend["names"].remove(id_browser)
-                plend.pop(id_browser)
+            self.__mark_lend_browser_for(
+                "gather", id_browser, self._browser_state["lend"])
 
 
 if __name__ == '__main__':

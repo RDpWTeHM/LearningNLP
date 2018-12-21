@@ -52,6 +52,9 @@ class WeiboSpider():
 
         import resource_manage  # Reference to > "package path" part
         res = resource_manage.Resource()
+        if __debug__:
+            print("check Singleton> id(res): {}".format(id(res)),
+                  file=sys.stderr)
         browser = None
         try:
             browser = res.acquire_browser_handler_by_create()
@@ -61,7 +64,7 @@ class WeiboSpider():
             raise RuntimeError("Can not acquire browser resource")
 
         browser.get(self.id)
-        time.sleep(10)  # -[o] update code later
+        time.sleep(30)  # -[o] update code later
         while True:
             try:
                 data = None
@@ -70,8 +73,8 @@ class WeiboSpider():
                     "//div[@class='WB_text W_f14']")
                 contents = [content.text for content in contents_list]
                 for content in contents:
-                    if __debug__:
-                        print(content, file=sys.stderr)
+                    # if __debug__:
+                    #    print(content, file=sys.stderr)
                     data = content
                     out_q.put(data)
 

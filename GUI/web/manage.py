@@ -3,20 +3,37 @@ import os
 import sys
 
 
-def learningNLP_customer():
+def learningNLP_customer(argv):
+    #
+    # package path
+    #
+    try:
+        _cwd = os.getcwd()
+        _proj_abs_path = _cwd[0:_cwd.find("GUI")]
+        _package_path = os.path.join(_proj_abs_path, "Crawler")
+        if _package_path not in sys.path:
+            sys.path.append(_package_path)
+
+        #
+        # Not: /home/joseph/Devl/LearningNLP/GUI/web/
+        #      $ python manage.py runserver
+        # But: /<any>/<path>/
+        #      $ python /home/joseph/Devl/LearningNLP/GUI/web/manage.py runserver
+        #               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #                /\ or use "../../"  relative path
+        # will cause issue
+    except Exception:
+        return  # -[o] fix later by using argv
+
+    #
+    # structure
+    #
+    import handler_crawler as hc  # reference "package path" part
     import threading
-    t = threading.Thread(target=manage_selenum)
+    t = threading.Thread(target=hc.manage_selenum)
     t.setDaemon(True)
     t.start()
     del t
-
-
-def manage_selenum():
-    from time import sleep
-    from time import ctime
-    while True:
-        print("{} manage_selenum".format(ctime()), file=sys.stderr)
-        sleep(5)
 
 
 def Is_child_processing():
@@ -24,7 +41,7 @@ def Is_child_processing():
     re_result = re.findall(
         "{}".format(os.getpid()),
         os.popen("ps -ejf | grep {} | grep -v \"grep\"".format(os.getpid())).read()
-        )
+    )
     ret = True if len(re_result) == 1 else False
     return ret
 
@@ -41,6 +58,6 @@ if __name__ == '__main__':
         ) from exc
 
     if Is_child_processing():
-        learningNLP_customer()
+        learningNLP_customer(sys.argv)
 
     execute_from_command_line(sys.argv)
