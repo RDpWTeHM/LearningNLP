@@ -9,6 +9,12 @@ from django.http import HttpResponse
 from .models import Weibo, Seq2SeqPost
 
 
+def index(request):
+    return render(request, "weibo/index.html",
+                  {'weibo_all_objects': Weibo.objects.all(), },
+                  )
+
+
 def crawler(request):
     return HttpResponse("<h1>you are in weibo -> crawler</h1>")
 
