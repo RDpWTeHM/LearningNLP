@@ -52,6 +52,28 @@ def crawler(request):
                 "<p><strong>Please Finish this function!</strong></p>")
 
 
+def get_seq2seqpost(request):
+    if request.method == "GET":
+        try:
+            _weiboID = request.GET["weiboID"]
+            _index = request.GET["index"]
+
+            _obj = Weibo.objects.get(weiboID=_weiboID).seq2seqpost_set.all()[int(_index)]
+            return HttpResponse(
+                "<h1>" + _obj.abstract + "</h1>" +
+                "<p><i>" + _obj.hashtag + "</i></p>" +
+                "<p>" + _obj.text + "</p>"
+            )
+        except TypeError:  # "_index" must be integer
+            raise
+        except IndexError:
+            raise
+        except Weibo.DoesNotExist:
+            return HttpResponse("dose not exist")
+        except Seq2SeqPost.DoesNotExist:
+            raise
+
+
 def test_crawler(request):
     from threading import Thread
     import sites.weibo.request as cweibo  # Reference to > "package path" part
@@ -70,7 +92,6 @@ def test_crawler(request):
             weibo_id = Weibo.objects.get(weiboID=weibo_id)
         except Weibo.DoesNotExist:
             weibo_id = Weibo.objects.create(weiboID=weibo_id)
-        import re
 
         data_dict = {}
         noHashTag_rule = re.compile("^【(.*)】(.*)$")

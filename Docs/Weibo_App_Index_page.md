@@ -310,6 +310,71 @@ def crawler(request):
 
 
 
+## Target Detail Page
+
+### Page for Get One Post
+
+增加一个 API (ex: `url/weibo/get/Seq2SeqPost/?weiboID=58371&index=1` ) 用于获取 post 内容。
+
+```python
+urlpatterns = [
+    path("", views.index, name="index"),
+    path("add/", views.add, name="add"),
+
+    path("crawler/", views.crawler, name="crawler"),
+
+    #
+    # API
+    #
+    path("get/Seq2SeqPost/", views.get_seq2seqpost, name="get_seq2seqpost"),
+
+    path("test_crawler/", views.test_crawler, name="test_crawler"),
+]
+```
+
+
+
+实现该 API 的功能：
+
+```python
+def get_seq2seqpost(request):
+    if request.method == "GET":
+        try:
+            _weiboID = request.GET["weiboID"]
+            _index = request.GET["index"]
+
+            _obj = Weibo.objects.get(weiboID=_weiboID).seq2seqpost_set.all()[int(_index)]
+            return HttpResponse(
+                "<h1>" + _obj.abstract + "</h1>" +
+                "<p><i>" + _obj.hashtag + "</i></p>" +
+                "<p>" + _obj.text + "</p>"
+            )
+        except TypeError:  # "_index" must be integer
+            raise
+        except IndexError:
+            raise
+        except Weibo.DoesNotExist:
+            return HttpResponse("dose not exist")
+        except Seq2SeqPost.DoesNotExist:
+            raise
+```
+
+
+
+在浏览器输入如 
+
+```
+http://localhost:8000/weibo/get/Seq2SeqPost/?weiboID=58371&index=4
+```
+
+测试结果。
+
+
+
+### Detail Page for show all Posts
+
+N/A
+
 ## Reference
 
 N/A
