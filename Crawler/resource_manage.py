@@ -60,7 +60,7 @@ class Resource(object):
     QBrowser = Queue()
     _browser_state_Lock = threading.Lock()
     _browser_state = {
-            "MAX_NUM": 4,
+            "MAX_NUM": 2,
             "total": 0,
             #
             # "lend": {"names": ["weibo-id_heheda", ],

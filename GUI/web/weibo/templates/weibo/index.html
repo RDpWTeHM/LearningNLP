@@ -26,10 +26,20 @@
 <body>
 	<div class="container">
 	<div class="row">
-		<div class="col-md-12 push-md-4">
+		<div class="col-md-12 push-md-4 jumbotron">
 		<div class="text-center">
 		<h1>Weibo IDs list</h1>
-		</div></div>
+		</div>
+		<br/>
+
+		<form method="POST" action="{% url 'add' %}">
+			<input id="id_new_crawl_target" name="new_crawl_target" 
+					placeholder="Enter an weibo id & name to be crawled"
+					class="form-control input-lg">
+
+			{% csrf_token %}
+		</form>
+		</div>
 	</div>
 	<div class="row">
 		<div class="col-md-12 push-md-4">
@@ -44,10 +54,17 @@
 			<tr><th scope="row">[put here]</th>
 				<td>{{ each_weibo.name }}</td>
 				<td><input type="button" class="btn btn-primary" 
-					       name="crawler" value="Crawl"></td></tr>
+					       name="crawler" id="crawler" value="Crawl"
+					       onclick="crawler('{{ each_weibo.name }}')"></td></tr>
 		{% endfor %}
 			</tbody>
 		</table>
+		<script>
+			function crawler(_name){
+				alert("Crawl " + _name);
+				window.open("{% url 'crawler' %}?name=" + _name);
+			}
+		</script>
 		</div>
 	</div>
 </body>

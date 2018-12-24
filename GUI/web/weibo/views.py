@@ -7,6 +7,7 @@ from time import sleep
 from django.http import HttpResponse
 
 from .models import Weibo, Seq2SeqPost
+import re
 
 
 def index(request):
@@ -15,8 +16,40 @@ def index(request):
                   )
 
 
+def add(request):
+    if request.method == 'POST':
+        data = request.POST.get("new_crawl_target", None)
+        result = re.findall("^id: (.*) & name: (.*)$", data)
+        if not request:
+            return HttpResponse("wrong format")
+        else:
+            weiboID = result[0][0]
+            weibo_name = result[0][1]
+            try:
+                Weibo.objects.create(weiboID=weiboID, name=weibo_name)
+                new_target = Weibo.objects.get(weiboID=weiboID)
+                return HttpResponse("<h1>ID: " + new_target.weiboID +
+                                    "name: " + new_target.name + "</h1>")
+            except Exception as err:
+                print("Exception: ", err, file=sys.stderr)
+                raise
+
+
 def crawler(request):
-    return HttpResponse("<h1>you are in weibo -> crawler</h1>")
+    if request.method == 'GET':
+        _name = request.GET.get("name", None)
+        if not _name:
+            return HttpResponse("need specify name")
+        try:
+            _target = Weibo.objects.get(name=_name)
+        except Weibo.DoesNotExist:
+            return HttpResponse(
+                "dose not exist this weibo name in DB, "
+                "please add it on Index page, then request again")
+        else:
+            return HttpResponse(
+                "<h1>crawl " + _target.name + "</h1>"
+                "<p><strong>Please Finish this function!</strong></p>")
 
 
 def test_crawler(request):
