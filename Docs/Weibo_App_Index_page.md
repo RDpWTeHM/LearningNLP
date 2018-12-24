@@ -465,9 +465,11 @@ add `detail.html` :
 
 注意到 line 8 用法，现在使用 app name + url name 来反向解析。
 
-需要注册 "weibo" app name:
+**需要注册 "weibo" app name:**
 
 ```python
+#### web/weibo/urls.py #### 
+[...]
 app_name = 'weibo'
 urlpatterns = [
     path("", views.index, name="index"),
