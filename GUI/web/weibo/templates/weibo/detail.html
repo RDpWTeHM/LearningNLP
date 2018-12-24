@@ -1,4 +1,4 @@
-{# web/weibo/templates/weibo/index.html #}
+{# web/weibo/templates/weibo/detail.html #}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,56 +21,35 @@
 	        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
 	        crossorigin="anonymous"></script>
 
-	<title>IDs list on DB | Weibo</title>
+	<title>Weibo ID Detail | Weibo</title>
 </head>
 <body>
 	<div class="container">
 	<div class="row">
 		<div class="col-md-12 push-md-4 jumbotron">
 		<div class="text-center">
-		<h1>Weibo IDs list</h1>
+		<h1>{{ weibo_obj.name }}</h1>
+		<input type="hidden" name="weibo_DB_id" value="{{ weibo_obj.id }}">
 		</div>
 		<br/>
 
-		<form method="POST" action="{% url 'weibo:add' %}">
-			<input id="id_new_crawl_target" name="new_crawl_target" 
-					placeholder="Enter an weibo id & name to be crawled"
-					class="form-control input-lg">
-
-			{% csrf_token %}
-		</form>
 		</div>
 	</div>
 	<div class="row">
-		<div class="col-md-12 push-md-4">
-		<table name="id_list_table" id='id_list_table'
-		       class="table table-hover">
-		    <thead>
-			<tr><th>DB index</th>
-				<th>Weibo Name</th><th>Action</th></tr>
-			</thead>
-			<tbody>
-		{% for each_weibo in weibo_all_objects %}
-			
-			<tr><th scope="row">{{ each_weibo.id }}</th>
-				<td><a href="{% url 'weibo:detail' each_weibo.id %}"
-					   class="">
-				{{ each_weibo.name }}</a>
-				</td>
-				<td><input type="button" class="btn btn-primary" 
-					       name="crawler" id="crawler" value="Crawl"
-					       onclick="crawler('{{ each_weibo.name }}')"></td>
-			</tr>
+	<div class="col-md-12 push-md-4">
+		<div class="list-group">
+		{% for seq2seqpost in weibo_obj.seq2seqpost_set.all %}
+			<a href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+				<div class="d-flex w-100 justify-content-between">
+					<h5 class="mb-1">{{ seq2seqpost.abstract }}</h5>
+					<small>{{ seq2seqpost.pub_date }}</small>
+				</div>
+				<small>{{ seq2seqpost.hashtag }}</small>
+				<p class="mb-1">{{ seq2seqpost.body }}</p>
+			</a>
 		{% endfor %}
-			</tbody>
-		</table>
-		<script>
-			function crawler(_name){
-				alert("Crawl " + _name);
-				window.open("{% url 'weibo:crawler' %}?name=" + _name);
-			}
-		</script>
 		</div>
+	</div>
 	</div>
 </body>
 </html>

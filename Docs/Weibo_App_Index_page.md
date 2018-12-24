@@ -373,7 +373,109 @@ http://localhost:8000/weibo/get/Seq2SeqPost/?weiboID=58371&index=4
 
 ### Detail Page for show all Posts
 
-N/A
+`urls.py` :
+
+```python
+    path("<int:pk>/", views.detail, name="detail"),
+```
+
+`views.py` :
+
+```python
+from django.shortcuts import get_object_or_404
+
+def detail(request, pk):
+    weibo_obj = get_object_or_404(Weibo, pk=pk)
+    try:
+        return render(request, "weibo/detail.html",
+                      {"weibo_obj": weibo_obj})
+    except Exception:
+        raise
+```
+
+add `detail.html` :
+
+```html
+{# web/weibo/templates/weibo/detail.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    [...bootstrap resource...]
+
+	<title>Weibo ID Detail | Weibo</title>
+</head>
+<body>
+	<div class="container">
+	<div class="row">
+		<div class="col-md-12 push-md-4 jumbotron">
+		<div class="text-center">
+		<h1>{{ weibo_obj.name }}</h1>
+		<input type="hidden" name="weibo_DB_id" value="{{ weibo_obj.id }}">
+		</div>
+		<br/>
+
+		</div>
+	</div>
+	<div class="row">
+	<div class="col-md-12 push-md-4">
+		<div class="list-group">
+		{% for seq2seqpost in weibo_obj.seq2seqpost_set.all %}
+			<a href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+				<div class="d-flex w-100 justify-content-between">
+					<h5 class="mb-1">{{ seq2seqpost.abstract }}</h5>
+					<small>{{ seq2seqpost.pub_date }}</small>
+				</div>
+				<small>{{ seq2seqpost.hashtag }}</small>
+				<p class="mb-1">{{ seq2seqpost.body }}</p>
+			</a>
+		{% endfor %}
+		</div>
+	</div>
+	</div>
+</body>
+</html>
+```
+
+浏览器使用 `http://localhost:8000/weibo/1/` 即可查看。
+
+
+
+修改 `index.html` 使可以跳转到 detail 页面：
+
+```html
+			<tr><th>DB index</th>
+				<th>Weibo Name</th><th>Action</th></tr>
+			</thead>
+			<tbody>
+		{% for each_weibo in weibo_all_objects %}
+			
+			<tr><th scope="row">{{ each_weibo.id }}</th>
+				<td><a href="{% url 'weibo:detail' each_weibo.id %}"
+					   class="">
+				{{ each_weibo.name }}</a>
+				</td>
+				<td><input type="button" class="btn btn-primary" 
+					       name="crawler" id="crawler" value="Crawl"
+					       onclick="crawler('{{ each_weibo.name }}')"></td>
+			</tr>
+		{% endfor %}
+			</tbody>
+```
+
+注意到 line 8 用法，现在使用 app name + url name 来反向解析。
+
+需要注册 "weibo" app name:
+
+```python
+app_name = 'weibo'
+urlpatterns = [
+    path("", views.index, name="index"),
+    path("add/", views.add, name="add"),
+    [...]
+```
+
+现在在 index 页面点击 “Weibo Name” 即可跳转到该 weibo id 的 detail page。
 
 ## Reference
 

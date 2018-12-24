@@ -5,6 +5,7 @@ import sys
 import os
 from time import sleep
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 
 from .models import Weibo, Seq2SeqPost
 import re
@@ -72,6 +73,15 @@ def get_seq2seqpost(request):
             return HttpResponse("dose not exist")
         except Seq2SeqPost.DoesNotExist:
             raise
+
+
+def detail(request, pk):
+    weibo_obj = get_object_or_404(Weibo, pk=pk)
+    try:
+        return render(request, "weibo/detail.html",
+                      {"weibo_obj": weibo_obj})
+    except Exception:
+        raise
 
 
 def test_crawler(request):
