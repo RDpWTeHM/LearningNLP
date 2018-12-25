@@ -479,6 +479,14 @@ urlpatterns = [
 
 现在在 index 页面点击 “Weibo Name” 即可跳转到该 weibo id 的 detail page。
 
+
+
+## update `<input>` for add target
+
+# -[o] POST success, should redirect to index page!
+
+
+
 ## Reference
 
 N/A
