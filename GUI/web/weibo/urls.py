@@ -13,6 +13,8 @@ urlpatterns = [
     path("crawler/", views.crawler, name="crawler"),
 
     path("<int:pk>/", views.detail, name="detail"),
+    path("<int:pk>/crawl_and_display/",
+         views.crawl_and_display, name="crawl_and_display"),
 
     #
     # API

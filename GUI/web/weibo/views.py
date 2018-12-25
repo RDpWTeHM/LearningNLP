@@ -63,7 +63,7 @@ def crawler(request):
                 "<p><strong>Please Finish this function!</strong></p>")
 
 
-def crawl_and_display(request):
+def crawl_and_display(request, pk):
     # ~~                                                     Browser
     #  ^------------------------------ return HTML ---------->  #
     #                                                          /|
@@ -82,7 +82,8 @@ def crawl_and_display(request):
     #
     # mainly logical on crawl_and_display.html with crawler()
     #
-    pass
+    return HttpResponse(
+        "<h1>you are at weibo/%d/crawl_and_display/</h1>" % pk)
 
 
 def get_Seq2SeqPost(request):

@@ -2,6 +2,10 @@
 
 
 
+[TOC]
+
+
+
 ## One by One display Detail
 
 Develop this function for improve `get_seq2seqpost()` function(API)
@@ -267,11 +271,149 @@ Destroying test database for alias 'default'...
 
 ## real  `[Crawl]`  button function
 
+```
+crawl_and_display()       crawler()
+~~~~~~~~~~~~~~~~~~~       ~~~~~~~~~
+    /\                        /\
+    ||                        ||
+  mainly HTML(Ajax)        do the crawl act!
+```
+
+### crawl and pre-display
+
+#### 重构 HTML 模板
+
+##### boostrapbase 模板
+
+```HTML
+{# weibo/templates/weibo/bootstrapbase.html #}
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" media="screen"
+        href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css"
+     [...]
+    <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+
+    <title>{% block title_text %}{% endblock %}</title>
+
+{% block js_in_head %}  
+{% endblock js_in_head %}
+
+  </head>
+  <body>
+    {% block body %}
+    {% endblock %}
+  </body>
+</html>
+```
+
+##### index 页面继承 bootstrap 模板
+
+```html
+{# web/weibo/templates/weibo/index.html #}
+{% extends 'weibo/bootstrapbase.html' %}
+
+	{% block title_text %}IDs list on DB | Weibo {% endblock %}
+
+{% block js_in_head %}  
+{% endblock js_in_head %}
+
+{% block body %}
+	<div class="container">
+	<div class="row">
+		<div class="col-md-12 push-md-4 jumbotron">
+		<div class="text-center">
+		<h1>Weibo IDs list</h1>
+		</div>
+		<br/>
+
+		<form method="POST" action="{% url 'weibo:add' %}">
+[...]
+[...]
+		</table>
+		<script>
+			function crawler(_name){
+				alert("Crawl " + _name);
+				window.open("{% url 'weibo:crawler' %}?name=" + _name);
+			}
+		</script>
+		</div>
+	</div>
+{% endblock body %}
+```
 
 
 
+#### crawl and pre-display 页面
+
+##### django url 路由
+
+```python
+app_name = 'weibo'
+urlpatterns = [
+    path("", views.index, name="index"),
+    path("add/", views.add, name="add"),
+
+    path("crawler/", views.crawler, name="crawler"),
+
+    path("<int:pk>/", views.detail, name="detail"),
+    path("<int:pk>/crawl_and_display/",
+         views.crawl_and_display, name="crawl_and_display"),
+
+    #
+    # API
+    [...]
+]
+```
+
+##### Simple Response function on `views.py`
+
+```python
+def crawl_and_display(request, pk):
+    return HttpResponse(
+        "<h1>you are at weibo/%d/crawl_and_display/</h1>" % pk)
+```
+
+##### update weibo index `href`
+
+```html
+[...]
+            <tbody>
+		{% for each_weibo in weibo_all_objects %}
+			<tr><th scope="row">{{ each_weibo.id }}</th>
+				<td><a href="{% url 'weibo:detail' each_weibo.id %}"
+					   class="">
+				{{ each_weibo.name }}</a>
+				</td>
+				<td><input type="button" class="btn btn-primary" 
+					       name="crawler" id="crawler" value="Crawl"
+					       onclick="crawler({{ each_weibo.pk }})"></td>
+					       {# onclick="window.open('{% url 'weibo:crawl_and_display' each_weibo.pk %}')"></td> #}
+			</tr>
+		{% endfor %}
+			</tbody>
+		</table>
+		<script>
+			function crawler(_pk){
+				var _url = `/weibo/${_pk}/crawl_and_display/`
+				window.open(_url);
+			}
+		</script>
+		</div>
+```
+
+> 对 line 11 使用 `{# #}` 注释后，line 12 去掉注释，该种方法也有效。
 
 
+
+##### -[o] create the HTML
 
 
 

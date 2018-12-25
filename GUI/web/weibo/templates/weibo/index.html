@@ -1,29 +1,12 @@
 {# web/weibo/templates/weibo/index.html #}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+{% extends 'weibo/bootstrapbase.html' %}
 
-	<link rel="stylesheet" media="screen"
-		  href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css"
-    	  integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
-		  crossorigin="anonymous">
+	{% block title_text %}IDs list on DB | Weibo {% endblock %}
 
-	<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.slim.min.js"
-	        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
-	        crossorigin="anonymous"></script>
-	<script src="https://cdn.bootcss.com/popper.js/1.12.9/umd/popper.min.js"
-	        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
-	        crossorigin="anonymous"></script>
-	<script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js"
-	        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
-	        crossorigin="anonymous"></script>
+{% block js_in_head %}  
+{% endblock js_in_head %}
 
-	<title>IDs list on DB | Weibo</title>
-</head>
-<body>
+{% block body %}
 	<div class="container">
 	<div class="row">
 		<div class="col-md-12 push-md-4 jumbotron">
@@ -51,7 +34,6 @@
 			</thead>
 			<tbody>
 		{% for each_weibo in weibo_all_objects %}
-			
 			<tr><th scope="row">{{ each_weibo.id }}</th>
 				<td><a href="{% url 'weibo:detail' each_weibo.id %}"
 					   class="">
@@ -59,18 +41,18 @@
 				</td>
 				<td><input type="button" class="btn btn-primary" 
 					       name="crawler" id="crawler" value="Crawl"
-					       onclick="crawler('{{ each_weibo.name }}')"></td>
+					       onclick="crawler({{ each_weibo.pk }})"></td>
+					       {# onclick="window.open('{% url 'weibo:crawl_and_display' each_weibo.pk %}')"></td> #}
 			</tr>
 		{% endfor %}
 			</tbody>
 		</table>
 		<script>
-			function crawler(_name){
-				alert("Crawl " + _name);
-				window.open("{% url 'weibo:crawler' %}?name=" + _name);
+			function crawler(_pk){
+				var _url = `/weibo/${_pk}/crawl_and_display/`
+				window.open(_url);
 			}
 		</script>
 		</div>
 	</div>
-</body>
-</html>
+{% endblock body %}
