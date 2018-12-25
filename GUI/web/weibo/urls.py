@@ -17,7 +17,12 @@ urlpatterns = [
     #
     # API
     #
-    path("get/Seq2SeqPost/", views.get_seq2seqpost, name="get_seq2seqpost"),
+    path("get/Seq2SeqPost/", views.get_Seq2SeqPost, name="get_Seq2SeqPost"),
+    path("<int:pk>/get/seq2seqpost/<int:index>/",
+         views.get_seq2seqpost, name="get_seq2seqpost"),
 
+    #
+    # for test at earlier develop.
+    #
     path("test_crawler/", views.test_crawler, name="test_crawler"),
 ]

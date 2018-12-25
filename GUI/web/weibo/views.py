@@ -37,6 +37,13 @@ def add(request):
 
 
 def crawler(request):
+    '''do crawler
+      receive crawler weibo id name name
+
+      do crawl, storage crawl to DB
+
+      response 'status', 'crawl number of posts', 'this times start id on DB';
+    '''
     if request.method == 'GET':
         _name = request.GET.get("name", None)
         if not _name:
@@ -53,7 +60,29 @@ def crawler(request):
                 "<p><strong>Please Finish this function!</strong></p>")
 
 
-def get_seq2seqpost(request):
+def crawl_and_display(request):
+    # ~~                                                     Browser
+    #  ^------------------------------ return HTML ---------->  #
+    #                                                          /|
+    # views. <--- "weibo/crawler/"  <--- Ajax request  ------#  |
+    # crawler()                                              *  /
+    # run          API                                       * /
+    # in           "weibo/get_seq2seqpost/"  <-- Ajax request -
+    # backend!     to get "new" post one by one(and display) *  \
+    #                |                                       *   |
+    # views.          `--- response seq2seqpost by json -------> #
+    # crawler()                                              *
+    # finish work, ----- and response! --------------------> #
+    #                                          got "weibo/crawler/" response,
+    #                                          set MAX length to stop
+    #                                          request "weibo/get_seq2seqpost/"
+    #
+    # mainly logical on crawl_and_display.html with crawler()
+    #
+    pass
+
+
+def get_Seq2SeqPost(request):
     if request.method == "GET":
         try:
             _weiboID = request.GET["weiboID"]
@@ -75,7 +104,17 @@ def get_seq2seqpost(request):
             raise
 
 
+def get_seq2seqpost(request, pk, index):
+    """ 'weibo/<weiboID>/get/seq2seqpost/<index>/'
+        -[o] response by json later
+    """
+    return HttpResponse("weibo pk: %d, seq2seqpost index: %d" % (pk, index))
+
+
 def detail(request, pk):
+    """-[o] update this and *.html that
+      display one by one by Ajax.
+    """
     weibo_obj = get_object_or_404(Weibo, pk=pk)
     try:
         return render(request, "weibo/detail.html",
