@@ -13,13 +13,14 @@ import sys
 from django.utils import timezone
 import copy
 from .models import Weibo, Seq2SeqPost
+import json
 
 
 class APIGetSeq2seqpostTest(TestCase):
-    weibo_data4test = {"weiboID": 58371, "name": "新浪新闻客户端"}
+    weibo_data4test = {"weiboID": '58371', "name": "新浪新闻客户端"}
     seq2seqpost_data4test_nohashtag = {}
     seq2seqpost_data4test = {
-        "weiboID_of_from_id": 58371,
+        "weiboID_of_from_id": '58371',
         "pub_date": timezone.now(),
         "hashtag": "早鸟分享",
         "text": "①活出自己：不要想着变成别人，做好自己，自信是魅力的根本；" +
@@ -35,23 +36,29 @@ class APIGetSeq2seqpostTest(TestCase):
         使用预期的 API 和正确的预期输入，
         判断是否可以得到正确的结果。
         '''
+        # create/save data in DB
         Weibo.objects.create(**self.weibo_data4test)
-        _test_data = copy.deepcopy(self.seq2seqpost_data4test)
-        foreignKey_weiboID = _test_data.pop("weiboID_of_from_id")
+        _data_for_creat_on_DB_as_kwargs = copy.deepcopy(self.seq2seqpost_data4test)
+        foreignKey_weiboID = _data_for_creat_on_DB_as_kwargs.pop("weiboID_of_from_id")
         _ = Seq2SeqPost.objects.filter(from_id=Weibo.objects.get(weiboID=foreignKey_weiboID))
-        if _:
-            '''in test case, DB should be clean.
-            '''
-            pass  # update
+        if _:  # in test case, DB should be clean.
+            pass  # backend code maybe like: _.update(**_data_for_creat_on_DB_as_kwargs)
         else:
-            test_data = Seq2SeqPost.objects.create(
+            _ = Seq2SeqPost.objects.create(
                 from_id=Weibo.objects.get(weiboID=foreignKey_weiboID),
-                **_test_data)
-            print("{!r}".format(test_data), file=sys.stderr)
+                **_data_for_creat_on_DB_as_kwargs)
+            print("{!r}".format(_), file=sys.stderr)
 
         # request data
         response = self.client.get("/weibo/%d/get/seq2seqpost/%d/" % (
             Weibo.objects.get(weiboID=foreignKey_weiboID).id, 1))
         assert response.status_code == 200  # correctness test, expect 200.
 
-        self.assertDictEqual(response.json(), self.seq2seqpost_data4test)
+        # cover python instance to string
+        data = dict(zip(
+            copy.deepcopy([_key for _key in self.seq2seqpost_data4test.keys()]),
+            copy.deepcopy([str(self.seq2seqpost_data4test[_]) for _ in self.seq2seqpost_data4test.keys()]),
+        ))
+        data['body'] = data['text']
+
+        self.assertDictEqual(json.loads(response.content), data)

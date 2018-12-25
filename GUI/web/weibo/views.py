@@ -6,9 +6,12 @@ import os
 from time import sleep
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.http import Http404
+from django.http import JsonResponse
 
 from .models import Weibo, Seq2SeqPost
 import re
+import copy
 
 
 def index(request):
@@ -106,8 +109,32 @@ def get_Seq2SeqPost(request):
 
 def get_seq2seqpost(request, pk, index):
     """ 'weibo/<weiboID>/get/seq2seqpost/<index>/'
-        -[o] response by json later
+      Response by json!
     """
+    if request.method == "GET":
+        try:
+            seq2seqpost_obj = get_object_or_404(Weibo, pk=pk).seq2seqpost_set.get(pk=index)
+
+            fix_data = {"eliminate": ["_state", 'from_id_id', "id", ],  # don't include those data
+                        "extra": ["weiboID_of_from_id", ],  # extra data
+                        }
+            data = dict(zip(  # cover object to string
+                copy.deepcopy([_key for _key in seq2seqpost_obj.__dict__.keys()]),
+                copy.deepcopy([str(getattr(seq2seqpost_obj, _)) for _ in seq2seqpost_obj.__dict__.keys()]),
+            ))
+            # do the action of fix
+            for __k in fix_data["eliminate"]: data.pop(__k)
+            for __k in fix_data["extra"]:
+                if __k == "weiboID_of_from_id":
+                    data[__k] = seq2seqpost_obj.from_id.weiboID
+                # elif ...: <= example for expand
+
+            # print(data, file=sys.stderr)
+            return JsonResponse(data)
+        except Seq2SeqPost.DoesNotExist:
+            return Http404("index Seq2SeqPost Dose not exist")
+    else:
+        return HttpResponse("wrong request, please use GET")
     return HttpResponse("weibo pk: %d, seq2seqpost index: %d" % (pk, index))
 
 
