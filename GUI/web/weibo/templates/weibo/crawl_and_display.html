@@ -1,0 +1,45 @@
+{# web/weibo/templates/weibo/detail.html #}
+{% extends 'weibo/bootstrapbase.html' %}
+
+	{% block title_text %}Crawl Weibo ID | Weibo{% endblock %}
+
+{% block js_in_head %}  
+{% endblock js_in_head %}
+
+{% block body %}
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 push-md-4 jumbotron">
+		<div class="text-center">
+		<h1>{{ Weibo_by_pk.name }}</h1>
+		<input type="hidden" name="weibo_DB_id" value="{{ Weibo_by_pk.id }}">
+		</div>
+		<br/>
+
+		</div>
+	</div>
+	<div class="row">
+	<div class="col-md-12 push-md-4">
+		<div class="list-group">
+		</div>
+	</div>
+	</div>
+</div>
+
+<script>
+	function test_request_crawler(_name){
+		alert("now, start request crawler with name:" + _name);
+		var xmlhttp;
+	    xmlhttp = new XMLHttpRequest();
+
+		xmlhttp.open("GET", "/weibo/crawler/?name=" + _name, true);
+		xmlhttp.send();
+		xmlhttp.onreadystatechange=function(){
+			if (xmlhttp.readyState==4 && xmlhttp.status==200){
+				window.location.replace("/weibo/" + xmlhttp.responseText + "/");
+			}
+		}
+	}
+	test_request_crawler("{{ Weibo_by_pk.name }}");
+</script>
+{% endblock body %}

@@ -2,6 +2,8 @@
 
 
 
+## *Overview*
+
 [TOC]
 
 
@@ -413,9 +415,179 @@ def crawl_and_display(request, pk):
 
 
 
-##### -[o] create the HTML
+##### create HTML file for crawl_and_display
+
+目前该页面内容先实现成和`weibo/<pk>/` 这个获取到的 “detail” 页面显示一致（但是使用了继承 bootstrapbase.html 模板的方式）
+
+```html
+{# web/weibo/templates/weibo/detail.html #}
+{% extends 'weibo/bootstrapbase.html' %}
+	{% block title_text %}Crawl Weibo ID | Weibo{% endblock %}
+{% block js_in_head %}  
+{% endblock js_in_head %}
+{% block body %}
+<div class="container">
+	<div class="row"><div class="col-md-12 push-md-4 jumbotron">
+		<div class="text-center">
+		<h1>{{ Weibo_by_pk.name }}</h1>
+		<input type="hidden" name="weibo_DB_id" value="{{ Weibo_by_pk.id }}">
+		</div><br/>
+	</div></div>
+	<div class="row"><div class="col-md-12 push-md-4">
+		<div class="list-group">
+		{% for seq2seqpost in Weibo_by_pk.seq2seqpost_set.all %}
+			<a href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+				<div class="d-flex w-100 justify-content-between">
+					<h5 class="mb-1">{{ seq2seqpost.abstract }}</h5>
+					<small>{{ seq2seqpost.pub_date }}</small></div>
+				<small>{{ seq2seqpost.hashtag }}</small>
+				<p class="mb-1">{{ seq2seqpost.body }}</p></a>
+		{% endfor %}
+		</div></div></div>
+</div>
+{% endblock body %}
+```
 
 
+
+#### basic "crawl and display" function
+
+```
+# ~~                                                     Browser
+#  ^------------------------------ return HTML ---------->  #
+#                                                          /|
+# views. <--- "weibo/crawler/"  <--- Ajax request  ------#  |
+# crawler()                                              *  /
+# run          API                                       * /
+# in           "weibo/get_seq2seqpost/"  <-- Ajax request -
+# backend!     to get "new" post one by one(and display) *  \
+#                |                                       *   |
+# views.          `--- response seq2seqpost by json -------> #
+# crawler()                                              *
+# finish work, ----- and response! --------------------> #
+#                                          got "weibo/crawler/" response,
+#                                          set MAX length to stop
+#                                          request "weibo/get_seq2seqpost/"
+#
+# mainly logical on crawl_and_display.html with crawler()
+#
+```
+
+`[Crawl]` button -> `/weibo/${_pk}/crawl_and_display/` -> `crawl_and_display.html`
+
+##### 一、异步请求 `/weibo/crawler/?name=<weibo name>`
+
+```html
+[...]
+		<h1>{{ Weibo_by_pk.name }}</h1>
+		<input type="hidden" name="weibo_DB_id" value="{{ Weibo_by_pk.id }}">
+		</div></div></div>
+	<div class="row">
+	<div class="col-md-12 push-md-4">
+		<div class="list-group">
+		</div></div></div>
+</div>
+
+<script>
+	function test_request_crawler(_name){
+		alert("now, start request crawler with name:" + _name);
+		var xmlhttp;
+	    xmlhttp = new XMLHttpRequest();
+
+		xmlhttp.open("GET", "/weibo/crawler/?name=" + _name, true);
+		xmlhttp.send();
+		xmlhttp.onreadystatechange=function(){
+			if (xmlhttp.readyState==4 && xmlhttp.status==200){
+				window.location.replace("/weibo/" + xmlhttp.responseText + "/");
+			}
+		}
+	}
+	test_request_crawler("{{ Weibo_by_pk.name }}");
+</script>
+{% endblock body %}
+```
+
+删除了 list-group 中显示内容 - 先拼起逻辑功能。
+
+异步加载完页面即开始请求 `/weibo/crawler/?name=<weibo name>`
+
+异步请求完成，即重定向到改 weibo name 的 detail 页面
+
+>  因为当前 detail 页面已经完成，暂时替代了上面逻辑的异步 “get_seq2seqpost”  来加载内容的实现。
+
+这个逻辑没有 hard-code, 所以可以无惧使用其它“符合格式” 的 weibo name（weiboID）测试。
+
+
+
+##### 二、`/weibo/crawler/?name=<weibo name>` 功能
+
+之前该功能已经实现过了 weibo name 是否在 DB 中的检查，然后暂时直接 response 内容。
+
+现在，在 response 之前完成它的爬取工作，然后 response，爬取代码基本和原本的 `test_crawler` 相差无几。
+
+```python
+def crawler(request):
+    '''do crawler
+      [...]
+    '''
+    if request.method == 'GET':
+        _name = request.GET.get("name", None)
+        if not _name:
+[...]
+            return do_crawl_and_response(_target.weiboID)
+```
+
+其调用了函数：
+
+```python
+def do_crawl_and_response(weiboID):
+    from threading import Thread
+    import sites.weibo.request as cweibo  # Reference to > "package path" part
+    weibo_crawl = cweibo.WeiboSpider("https://www.weibo.com/%s" % weiboID)
+    t = Thread(target=weibo_crawl.run, args=(weibo_crawl.qdata, ))
+    t.setDaemon(True)
+    t.start()
+    del t
+
+    sleep(50)
+    for post in weibo_crawl.consumer(weibo_crawl.qdata):
+        weibo_obj = get_object_or_404(Weibo, weiboID=weiboID)
+
+        data_dict = {}
+        noHashTag_rule = re.compile("^【(.*)】(.*)$")
+        result = re.findall(noHashTag_rule, str(post))
+        if not result:
+            hashTag_rule = re.compile('^#(.*)#【(.*)】(.*)$')
+            result = re.findall(hashTag_rule, str(post))
+
+            if not result:
+                # logging here
+                print("unknow format post:\n\t", str(post), file=sys.stderr)
+                continue
+            else:
+                print("[Debug]", file=sys.stderr)
+                print("\t result ==>>>", result, file=sys.stderr)
+                # data_dict["pub_date"]  # not achive yet, use default.
+                data_dict["hashtag"] = result[0][0]
+                data_dict["text"] = result[0][2]
+                data_dict["abstract"] = result[0][1]
+                print("[Debug] data_dict", data_dict, file=sys.stderr)
+        else:
+            data_dict["text"] = result[0][1]
+            data_dict["abstract"] = result[0][0]
+        data_dict["from_id"] = weibo_obj
+
+        if not Seq2SeqPost.objects.filter(abstract=data_dict["abstract"]):
+            seq2seqpost = Seq2SeqPost()
+            for key in data_dict.keys():
+                setattr(seq2seqpost, key, data_dict[key])
+            seq2seqpost.save()
+        else:
+            continue
+    return HttpResponse("%d" % weibo_obj.pk)
+```
+
+===== 完成基本功能。
 
 
 

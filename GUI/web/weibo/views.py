@@ -39,6 +39,53 @@ def add(request):
                 raise
 
 
+def do_crawl_and_response(weiboID):
+    from threading import Thread
+    import sites.weibo.request as cweibo  # Reference to > "package path" part
+    weibo_crawl = cweibo.WeiboSpider("https://www.weibo.com/%s" % weiboID)
+    t = Thread(target=weibo_crawl.run, args=(weibo_crawl.qdata, ))
+    t.setDaemon(True)
+    t.start()
+    del t
+
+    sleep(50)
+    for post in weibo_crawl.consumer(weibo_crawl.qdata):
+        weibo_obj = get_object_or_404(Weibo, weiboID=weiboID)
+
+        data_dict = {}
+        noHashTag_rule = re.compile("^【(.*)】(.*)$")
+        result = re.findall(noHashTag_rule, str(post))
+        if not result:
+            hashTag_rule = re.compile('^#(.*)#【(.*)】(.*)$')
+            result = re.findall(hashTag_rule, str(post))
+
+            if not result:
+                # logging here
+                print("unknow format post:\n\t", str(post), file=sys.stderr)
+                continue
+            else:
+                print("[Debug]", file=sys.stderr)
+                print("\t result ==>>>", result, file=sys.stderr)
+                # data_dict["pub_date"]  # not achive yet, use default.
+                data_dict["hashtag"] = result[0][0]
+                data_dict["text"] = result[0][2]
+                data_dict["abstract"] = result[0][1]
+                print("[Debug] data_dict", data_dict, file=sys.stderr)
+        else:
+            data_dict["text"] = result[0][1]
+            data_dict["abstract"] = result[0][0]
+        data_dict["from_id"] = weibo_obj
+
+        if not Seq2SeqPost.objects.filter(abstract=data_dict["abstract"]):
+            seq2seqpost = Seq2SeqPost()
+            for key in data_dict.keys():
+                setattr(seq2seqpost, key, data_dict[key])
+            seq2seqpost.save()
+        else:
+            continue
+    return HttpResponse("%d" % weibo_obj.pk)
+
+
 def crawler(request):
     '''do crawler
       receive crawler weibo id name name
@@ -58,9 +105,7 @@ def crawler(request):
                 "dose not exist this weibo name in DB, "
                 "please add it on Index page, then request again")
         else:
-            return HttpResponse(
-                "<h1>crawl " + _target.name + "</h1>"
-                "<p><strong>Please Finish this function!</strong></p>")
+            return do_crawl_and_response(_target.weiboID)
 
 
 def crawl_and_display(request, pk):
@@ -82,8 +127,8 @@ def crawl_and_display(request, pk):
     #
     # mainly logical on crawl_and_display.html with crawler()
     #
-    return HttpResponse(
-        "<h1>you are at weibo/%d/crawl_and_display/</h1>" % pk)
+    return render(request, "weibo/crawl_and_display.html",
+                  {"Weibo_by_pk": get_object_or_404(Weibo, pk=pk)})
 
 
 def get_Seq2SeqPost(request):
