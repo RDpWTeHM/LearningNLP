@@ -3,7 +3,27 @@
 
 	{% block title_text %}Crawl Weibo ID | Weibo{% endblock %}
 
-{% block js_in_head %}  
+{% block js_in_head %}
+<script >
+/**
+ * utils function:
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+    /* example */
+    async function log_wait_log() {
+        console.log("start sleep");
+        await sleep(3000);
+        console.log("finish sleep");
+    }
+    /* run for test */
+    //log_wait_log();
+
+	var g_crawler_finish_flag = false;
+	var crawler_result_new_posts_total = -1;
+	var g_seq2seqpost_current_total = {{ posts_current_number }};
+</script>
 {% endblock js_in_head %}
 
 {% block body %}
@@ -14,13 +34,12 @@
 		<h1>{{ Weibo_by_pk.name }}</h1>
 		<input type="hidden" name="weibo_DB_id" value="{{ Weibo_by_pk.id }}">
 		</div>
-		<br/>
-
 		</div>
 	</div>
 	<div class="row">
 	<div class="col-md-12 push-md-4">
-		<div class="list-group">
+		<div class="list-group"
+			 name="crawl_result_list" id="crawl_result_list">
 		</div>
 	</div>
 	</div>
@@ -36,15 +55,64 @@
 		xmlhttp.send();
 		xmlhttp.onreadystatechange=function(){
 			if (xmlhttp.readyState==4 && xmlhttp.status==200){
-				window.location.replace("/weibo/" + xmlhttp.responseText + "/");
+				g_crawler_finish_flag = true;
+				// console.log("xmlhttp.responseText: " + xmlhttp.responseText);
+				crawler_result_new_posts_total = parseInt(xmlhttp.responseText);
+				// console.log("crawler_result_new_posts_total: " + crawler_result_new_posts_total);
+				// console.log("crawler finish!");
 			}else if(xmlhttp.status==404){
 				alert(xmlhttp.responseText);
 			}else{
 				// window.location.reload(); // -[o] update later.
- 				alert(xmlhttp.responseText);
+ 				//alert(xmlhttp.responseText);
 			}
 		}
 	}
 	test_request_crawler("{{ Weibo_by_pk.name }}");
+
+	
+	async function delay_repeat_request_result(_time){
+		await sleep(_time);
+		rst = g_seq2seqpost_index - g_seq2seqpost_current_total;
+		if ((g_crawler_finish_flag == false) ||
+			(rst != crawler_result_new_posts_total)){
+			request_crawler_result_one_by_one()
+		}
+	}
+
+	var g_seq2seqpost_index = g_seq2seqpost_current_total;
+	function request_crawler_result_one_by_one(){
+		var xmlhttp_OneByOne;
+	    xmlhttp_OneByOne = new XMLHttpRequest();
+
+		xmlhttp_OneByOne.open("GET",
+			`/weibo/{{ Weibo_by_pk.id }}/get/seq2seqpost/${g_seq2seqpost_index}/`, true);
+		xmlhttp_OneByOne.send();
+		xmlhttp_OneByOne.onreadystatechange=function(){
+			if (xmlhttp_OneByOne.readyState==4 && xmlhttp_OneByOne.status==200){
+				var _data = xmlhttp_OneByOne.responseText
+				var obj = JSON.parse(_data);
+
+				var _append = "<a href=\"#\" class=\"list-group-item list-group-item-action flex-column align-items-start\">" +
+							  "<div class=\"d-flex w-100 justify-content-between\">" +
+							  "<h5 class=\"mb-1\">" + obj.abstract + "</h5>" +
+							  "<small>" + obj.pub_date + "</small>" +
+							  "</div>" +
+							  "<small>" + obj.hashtag + "</small>" +
+							  "<p class=\"mb-1\">" + obj.text + "</p>" +
+							  "</a>"
+				document.getElementById("crawl_result_list").innerHTML += _append;
+				// $(#"crawl_result_list").after(_append);
+				g_seq2seqpost_index += 1;
+				delay_repeat_request_result(500);
+			}else if(xmlhttp_OneByOne.status==404){
+				alert(xmlhttp_OneByOne.responseText);
+				delay_repeat_request_result(2000);
+			}else{
+ 				//alert(xmlhttp_OneByOne.responseText);
+			}
+		}
+	}
+	delay_repeat_request_result(35000);
 </script>
 {% endblock body %}

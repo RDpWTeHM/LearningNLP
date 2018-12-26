@@ -652,10 +652,271 @@ def do_crawl_and_response(weiboID):
 
 ### Crawl and display one by one
 
-#### -[o] TODO: finish this
+#### Ajax request crawl result one by one
+
+添加一个 `/weibo/crawler/?name=<weibo name>` 结束标志，以及它返回的数据
+
+```javascript
+{% block js_in_head %}
+<script >
+	var g_crawler_finish_flag = false;
+</script>
+{% endblock js_in_head %}
+```
+
+
+
+同时 one by one 请求数据：
+
+```javascript
+[...]
+	test_request_crawler("{{ Weibo_by_pk.name }}");
+
+	var g_seq2seqpost_index = 0;
+	function request_crawler_result_one_by_one(){
+		var xmlhttp_OneByOne;
+	    xmlhttp_OneByOne = new XMLHttpRequest();
+
+	    g_seq2seqpost_index += 1;
+		xmlhttp_OneByOne.open("GET",
+			`/weibo/{{ Weibo_by_pk.id }}/get/seq2seqpost/${g_seq2seqpost_index}/`, true);
+		xmlhttp_OneByOne.send();
+		xmlhttp_OneByOne.onreadystatechange=function(){
+			if (xmlhttp_OneByOne.readyState==4 && xmlhttp_OneByOne.status==200){
+				var _data = xmlhttp_OneByOne.responseText
+				alert(_data);
+				if (g_crawler_finish_flag == false){
+					request_crawler_result_one_by_one()
+				}
+			}else if(xmlhttp_OneByOne.status==404){
+				alert(xmlhttp_OneByOne.responseText);
+			}else{
+ 				alert(xmlhttp_OneByOne.responseText);
+			}
+		}
+	}
+	request_crawler_result_one_by_one();
+```
+
+javascript 对 line 16 的 json data 解析：
+
+```javascript
+var obj = JSON.parse(_data);
+console.log(obj);  // 在 console 中 check 数据。
+```
+
+> [quick check API response Json could be parse by JavaScript or not]: [:point_down:](#quick check API response Json could be parse by JavaScript or not)
+
+
+
+显示数据在页面上：
+
+```javascript
+var _append = "<a href=\"#\" class=\"list-group-item list-group-item-action flex-column align-items-start\">" +
+    "<div class=\"d-flex w-100 justify-content-between\">" +
+    "<h5 class=\"mb-1\">" + obj.abstract + "</h5>" +
+    "<small>" + obj.pub_date + "</small>" +
+    "</div>" +
+    "<small>" + obj.hashtag + "</small>" +
+    "<p class=\"mb-1\">" + obj.text + "</p>" +
+    "</a>"
+document.getElementById("crawl_result_list").innerHTML += _append
+```
+
+重复请求（one by one）：
+
+```javascript
+[...]
+ 	document.getElementById("crawl_result_list").innerHTML += _append
+
+	delay_repeat_request_result(1000);
+}else if(xmlhttp_OneByOne.status==404){
+    alert(xmlhttp_OneByOne.responseText);
+	delay_repeat_request_result(5000);
+[...]
+```
+
+上面的 delay 机制：
+
+```javascript
+/**
+ * utils function:
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+    /* example */
+    async function log_wait_log() {
+        console.log("start sleep");
+        await sleep(3000);
+        console.log("finish sleep");
+    }
+    /* run for test */
+    //log_wait_log();
+```
+
+
+
+#### display request crawl result from new
+
+该页面是用于显示新爬取的数据。而非一条一条从数据库中获取全部的。
+
+需要和 `crawl_and_display` 的时候回复页面同时，也设定好当前数据库中的该 posts 一共多少条，
+
+然后请求从下一条开始。
+
+`weibo/crawler/?name=...` 回复带有全部新爬取的总数结果，防止该 response 回复之后
+
+
+
+回复当前数据总数：
+
+```python
+def crawl_and_display(request, pk):
+    obj = get_object_or_404(Weibo, pk=pk)
+    return render(request, "weibo/crawl_and_display.html",
+                  {"Weibo_by_pk": obj,
+                   "posts_current_number": len(obj.seq2seqpost_set.all())})
+```
+
+模板 load 的时候赋值：
+
+```javascript
+var g_seq2seqpost_current_total = {{ posts_current_number }};
+```
+
+
+
+从下一条新内容开始：
+
+```javascript
+    var g_seq2seqpost_index = g_seq2seqpost_current_total;
+	function request_crawler_result_one_by_one(){
+		var xmlhttp_OneByOne;
+	    xmlhttp_OneByOne = new XMLHttpRequest();
+
+	    XXXXX g_seq2seqpost_index += 1; XXXX // 移动到 if ...==200 内！
+        [...]
+     }
+     delay_repeat_request_result(3000);  // 第一次启动需要等待一下
+```
+
+QuerySet 从 0 开始 index，length 是实际 length， 所以 index -> length 既是从下一条开始。
+
+
+
+现在，修改 crawler 回复，回复新增的总条数。
+
+增加显示新爬取的总数：
+
+```javascript
+// N/A
+// 使用 g_seq2seqpost_index - g_seq2seqpost_current_total 即可
+```
+
+> 注意这个计数的算法，`g_seq2seqpost_index` 最开始等于 `g_seq2seqpost_current_total`；当成功获取一个 post data 之后，就会增加一。所以上面的减法不用另外 `+1`；
+
+新增的总数：
+
+```javascript
+var crawler_result_new_posts_total = -1;
+[...]
+<script>
+	function test_request_crawler(_name){
+		[...]
+		xmlhttp.onreadystatechange=function(){
+			if (xmlhttp.readyState==4 && xmlhttp.status==200){
+				g_crawler_finish_flag = true;
+				crawler_result_new_posts_total = parseInt(xmlhttp.responseText);
+```
+
+增加停止的判断条件：
+
+```javascript
+	async function delay_repeat_request_result(_time){
+		await sleep(_time);
+		rst = g_seq2seqpost_index - g_seq2seqpost_current_total;
+		if ((g_crawler_finish_flag == false) ||
+			(rst != crawler_result_new_posts_total)){
+			request_crawler_result_one_by_one()
+		}
+	}
+```
+
+
+
+#### ~~innerHTML 改为 jQuery 的 after 操作~~
+
+```javascript
+$(#"crawl_result_list").after(_append);
+```
+
+> not work currently
 
 
 
 ## Reference
 
-N/A
+### quick check API response Json could be parse by JavaScript or not
+
+#### a quick/simple/easy test url
+
+```python
+[...]
+from django.shortcuts import render
+
+app_name = 'weibo'
+urlpatterns = [
+    [...]
+    path("practise_js/",
+         lambda request: render(request, "weibo/practise_js.html", {}))
+]
+```
+
+#### a javasript file for test
+
+"完全" copy 了 “one by one” Ajax request 的功能：
+
+```javascript
+<html>
+<head>
+	<title>N/A</title>
+	<script type="text/javascript">
+		var g_crawler_finish_flag = false;
+	</script>
+</head>
+<body>
+<script type="text/javascript">
+	var g_seq2seqpost_index = 0;
+	function request_crawler_result_one_by_one(){
+		var xmlhttp_OneByOne;
+	    xmlhttp_OneByOne = new XMLHttpRequest();
+
+	    g_seq2seqpost_index += 1;
+		xmlhttp_OneByOne.open("GET",
+			`/weibo/1/get/seq2seqpost/${g_seq2seqpost_index}/`, true);
+		xmlhttp_OneByOne.send();
+		xmlhttp_OneByOne.onreadystatechange=function(){
+			if (xmlhttp_OneByOne.readyState==4 && xmlhttp_OneByOne.status==200){
+				var _data = xmlhttp_OneByOne.responseText
+				var obj = JSON.parse(_data);
+				console.log(obj);
+
+				if (g_crawler_finish_flag == false){
+					g_crawler_finish_flag = true;
+					request_crawler_result_one_by_one()
+				}
+			}else if(xmlhttp_OneByOne.status==404){
+				alert(xmlhttp_OneByOne.responseText);
+			}else{
+ 				alert(xmlhttp_OneByOne.responseText);
+			}
+		}
+	}
+	request_crawler_result_one_by_one();
+</script>
+</body>
+</html>
+```
+
+如此可以在 console 中看到 javascript 是否解析出来数据，以及数据是否正确。

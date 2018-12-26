@@ -55,8 +55,9 @@ def do_crawl(weiboID):
     t.start()
     del t
 
-    sleep(30)
+    sleep(20)
     weibo_obj = None
+    new_post = 0
     for post in weibo_crawl.consumer(weibo_crawl.qdata):
         try:
             weibo_obj = Weibo.objects.get(weiboID=weiboID)
@@ -92,10 +93,11 @@ def do_crawl(weiboID):
             for key in data_dict.keys():
                 setattr(seq2seqpost, key, data_dict[key])
             seq2seqpost.save()
+            new_post += 1
         else:
             continue
     if weibo_obj:
-        return "%d" % weibo_obj.pk
+        return "%d" % new_post
     else:
         raise CrawlResponse404("server busy")  # raise Http404 should be work!
 
@@ -150,8 +152,10 @@ def crawl_and_display(request, pk):
     #
     # mainly logical on crawl_and_display.html with crawler()
     #
+    obj = get_object_or_404(Weibo, pk=pk)
     return render(request, "weibo/crawl_and_display.html",
-                  {"Weibo_by_pk": get_object_or_404(Weibo, pk=pk)})
+                  {"Weibo_by_pk": obj,
+                   "posts_current_number": len(obj.seq2seqpost_set.all())})
 
 
 def get_Seq2SeqPost(request):
@@ -182,7 +186,7 @@ def get_seq2seqpost(request, pk, index):
     """
     if request.method == "GET":
         try:
-            seq2seqpost_obj = get_object_or_404(Weibo, pk=pk).seq2seqpost_set.get(pk=index)
+            seq2seqpost_obj = get_object_or_404(Weibo, pk=pk).seq2seqpost_set.all()[index]
 
             fix_data = {"eliminate": ["_state", 'from_id_id', "id", ],  # don't include those data
                         "extra": ["weiboID_of_from_id", ],  # extra data
@@ -200,8 +204,8 @@ def get_seq2seqpost(request, pk, index):
 
             # print(data, file=sys.stderr)
             return JsonResponse(data)
-        except Seq2SeqPost.DoesNotExist:
-            return Http404("index Seq2SeqPost Dose not exist")
+        except (Seq2SeqPost.DoesNotExist, IndexError):
+            raise Http404("index Seq2SeqPost Dose not exist")
     else:
         return HttpResponse("wrong request, please use GET")
     return HttpResponse("weibo pk: %d, seq2seqpost index: %d" % (pk, index))

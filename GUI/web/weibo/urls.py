@@ -4,6 +4,8 @@ from django.urls import path
 
 from . import views
 
+from django.shortcuts import render
+
 
 app_name = 'weibo'
 urlpatterns = [
@@ -26,5 +28,7 @@ urlpatterns = [
     #
     # for test at earlier develop.
     #
-    path("test_crawler/", views.test_crawler, name="test_crawler"),
+    # path("test_crawler/", views.test_crawler, name="test_crawler"),
+    # path("practise_js/",
+    #      lambda request: render(request, "weibo/practise_js.html", {}))
 ]
