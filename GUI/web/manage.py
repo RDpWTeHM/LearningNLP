@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os
 import sys
+import time
+import threading
 
 
 def learningNLP_customer(argv):
@@ -29,11 +31,31 @@ def learningNLP_customer(argv):
     # structure
     #
     import handler_crawler as hc  # reference "package path" part
-    import threading
     t = threading.Thread(target=hc.manage_selenum)
     t.setDaemon(True)
     t.start()
     del t
+
+
+#
+# open browser(like $ jupyter notebook)
+# Reference `execute_from_command_line`
+def delay_enable_browser(argv):
+    try:
+        subcommand = argv[1]  # manage.py runserver
+    except IndexError:
+        pass
+
+    if subcommand == 'runserver' and '--noreload' not in argv:
+        try:
+            parser_port = argv[2]
+            port_with_colon = parser_port[parser_port.index(":"):]
+        except (IndexError, ValueError):
+            port_with_colon = ":8000"
+        finally:
+            import webbrowser
+            time.sleep(0.5)
+            webbrowser.open_new("http://localhost" + port_with_colon + "/weibo/")
 
 
 def Is_child_processing():
@@ -59,5 +81,7 @@ if __name__ == '__main__':
 
     if Is_child_processing():
         learningNLP_customer(sys.argv)
+        t = threading.Thread(target=delay_enable_browser, args=(sys.argv, ))
+        t.start(); del t;
 
     execute_from_command_line(sys.argv)
