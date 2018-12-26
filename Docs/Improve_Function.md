@@ -591,6 +591,65 @@ def do_crawl_and_response(weiboID):
 
 
 
+### Bug Detect and fix
+
+本次在将 Index page 的 `<input>` function 更新之后，添加多个 weiboID，然后测试 `[Crawl]` 的并发功能。出现了一些意外情况。
+
+最首先是从 `Http404` 的用法错误开始的。（正确的用法见下文 3.）
+
+然后解决了这个问题之后，使用了 “Server busy” 来暂时 fix `weibo_crawl.run` 生产者线程的 Exception 情况。
+
+**（另一个线程的异常不能被另一个线程捕获。需要同步机制（Queue），暂时用会发生的超时和内容为空指示）**
+
+这个问题的原因是目前 hard-code 请求等待时间，以及原本将 `capa["pageLoadStrategy"] = "none"` 去掉的原因，导致了 browser handler 没有在消费者线程退出前 release -> 造成了启动之后的浏览器不可用。
+
+*（manage 线程目前似乎没有起到作用，后期需要再测试它的功能）*
+
+
+
+**Bug Fixed:**
+
+1. 修改浏览器不等待 get 完全。 以及调整等待时长！否则会出现 browser handler 没有 release 的情况。
+
+   -- 加上 `browser.execute_script("window.stop();")` 来解决
+
+2. crawl and display 加上 Ajax 如果是 404 response 等就 alert 显示错误消息
+
+   ```javascript
+   --- a/GUI/web/weibo/templates/weibo/crawl_and_display.html
+   +++ b/GUI/web/weibo/templates/weibo/crawl_and_display.html
+   @@ -37,6 +37,11 @@
+                   xmlhttp.onreadystatechange=function(){
+                           if (xmlhttp.readyState==4 && xmlhttp.status==200){
+                                   window.location.replace("/weibo/" + xmlhttp.responseText + "/");
+   +                       }else if(xmlhttp.status==404){
+   +                               alert(xmlhttp.responseText);
+   +                       }else{
+   +                               // window.location.reload(); // -[o] update later.
+   +                               alert(xmlhttp.responseText);
+                           }
+                   }
+           }
+   
+   ```
+
+3. django.http -> Http404 用法错误
+
+   ```python
+   不用 return，
+   直接 raise Http404(msg)
+   ```
+
+4. 略调整了一点点代码，更短更合理。
+
+现在多线程不断请求没有问题了！
+
+> 注意，不要手动点击受 selenium 控制的浏览器，否则会出现失去程序控制的情况。
+>
+> （在完成开发阶段之后，无头模式应该不会发生这个情况）
+
+
+
 ## Reference
 
 N/A

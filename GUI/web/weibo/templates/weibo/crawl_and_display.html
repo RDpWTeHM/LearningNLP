@@ -37,6 +37,11 @@
 		xmlhttp.onreadystatechange=function(){
 			if (xmlhttp.readyState==4 && xmlhttp.status==200){
 				window.location.replace("/weibo/" + xmlhttp.responseText + "/");
+			}else if(xmlhttp.status==404){
+				alert(xmlhttp.responseText);
+			}else{
+				// window.location.reload(); // -[o] update later.
+ 				alert(xmlhttp.responseText);
 			}
 		}
 	}

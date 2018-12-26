@@ -483,7 +483,28 @@ urlpatterns = [
 
 ## update `<input>` for add target
 
-# -[o] POST success, should redirect to index page!
+```python
+from .urls import app_name
+
+def add(request):
+    if request.method == 'POST':
+        data = request.POST.get("new_crawl_target", None)
+        result = re.findall("^id: (.*) & name: (.*)$", data)
+        if not request:
+            return HttpResponse("wrong format")
+        else:
+            weiboID = result[0][0]
+            weibo_name = result[0][1]
+            try:
+                Weibo.objects.create(weiboID=weiboID, name=weibo_name)
+                new_target = Weibo.objects.get(weiboID=weiboID)
+                return redirect("/" + "weibo" + "/")
+            except Exception as err:
+                print("Exception: ", err, file=sys.stderr)
+                raise
+```
+
+修改了 line 15, 重定向到 app 首页。
 
 
 

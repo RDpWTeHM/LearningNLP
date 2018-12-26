@@ -64,7 +64,7 @@ class WeiboSpider():
             raise RuntimeError("Can not acquire browser resource")
 
         browser.get(self.id)
-        time.sleep(30)  # -[o] update code later
+        time.sleep(10)  # -[o] update code later
         while True:
             try:
                 data = None
@@ -86,6 +86,7 @@ class WeiboSpider():
             except Exception:  # -[o] pending...
                 out_q.put(Exception)
                 break
+        browser.execute_script("window.stop();")
         res.release_browser_handler(browser)
         del browser
 

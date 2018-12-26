@@ -6,6 +6,7 @@ import os
 from time import sleep
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.http import Http404
 from django.http import JsonResponse
 
@@ -32,14 +33,20 @@ def add(request):
             try:
                 Weibo.objects.create(weiboID=weiboID, name=weibo_name)
                 new_target = Weibo.objects.get(weiboID=weiboID)
-                return HttpResponse("<h1>ID: " + new_target.weiboID +
-                                    "name: " + new_target.name + "</h1>")
+                return redirect("/" + "weibo" + "/")
+                #                      ~~~~~     ~~~~
+                #                       ^ sync     ^ index page
+                #                   with app_name
             except Exception as err:
                 print("Exception: ", err, file=sys.stderr)
                 raise
 
 
-def do_crawl_and_response(weiboID):
+class CrawlResponse404(Exception):
+    pass
+
+
+def do_crawl(weiboID):
     from threading import Thread
     import sites.weibo.request as cweibo  # Reference to > "package path" part
     weibo_crawl = cweibo.WeiboSpider("https://www.weibo.com/%s" % weiboID)
@@ -48,9 +55,13 @@ def do_crawl_and_response(weiboID):
     t.start()
     del t
 
-    sleep(50)
+    sleep(30)
+    weibo_obj = None
     for post in weibo_crawl.consumer(weibo_crawl.qdata):
-        weibo_obj = get_object_or_404(Weibo, weiboID=weiboID)
+        try:
+            weibo_obj = Weibo.objects.get(weiboID=weiboID)
+        except Weibo.DoesNotExist:
+            raise CrawlResponse404("WeiboID: %s does not exist" % weiboID)
 
         data_dict = {}
         noHashTag_rule = re.compile("^【(.*)】(.*)$")
@@ -64,13 +75,13 @@ def do_crawl_and_response(weiboID):
                 print("unknow format post:\n\t", str(post), file=sys.stderr)
                 continue
             else:
-                print("[Debug]", file=sys.stderr)
-                print("\t result ==>>>", result, file=sys.stderr)
+                # print("[Debug]", file=sys.stderr)
+                # print("\t result ==>>>", result, file=sys.stderr)
                 # data_dict["pub_date"]  # not achive yet, use default.
                 data_dict["hashtag"] = result[0][0]
                 data_dict["text"] = result[0][2]
                 data_dict["abstract"] = result[0][1]
-                print("[Debug] data_dict", data_dict, file=sys.stderr)
+                # print("[Debug] data_dict", data_dict, file=sys.stderr)
         else:
             data_dict["text"] = result[0][1]
             data_dict["abstract"] = result[0][0]
@@ -83,7 +94,10 @@ def do_crawl_and_response(weiboID):
             seq2seqpost.save()
         else:
             continue
-    return HttpResponse("%d" % weibo_obj.pk)
+    if weibo_obj:
+        return "%d" % weibo_obj.pk
+    else:
+        raise CrawlResponse404("server busy")  # raise Http404 should be work!
 
 
 def crawler(request):
@@ -95,17 +109,26 @@ def crawler(request):
       response 'status', 'crawl number of posts', 'this times start id on DB';
     '''
     if request.method == 'GET':
-        _name = request.GET.get("name", None)
-        if not _name:
-            return HttpResponse("need specify name")
         try:
-            _target = Weibo.objects.get(name=_name)
-        except Weibo.DoesNotExist:
-            return HttpResponse(
-                "dose not exist this weibo name in DB, "
-                "please add it on Index page, then request again")
+            _name = request.GET["name"]
+        except Exception as e:
+            print("TODO: more specify", e, file=sys.stderr)
+            import traceback; traceback.print_exc();
+            raise Http404("need specify name")
         else:
-            return do_crawl_and_response(_target.weiboID)
+            try:
+                print("crawler name: ", _name, file=sys.stderr)
+                _target = Weibo.objects.get(name=_name)
+                return HttpResponse(do_crawl(_target.weiboID))
+            except Weibo.DoesNotExist:
+                raise Http404(
+                    "dose not exist this weibo name in DB, "
+                    "please add it on Index page, then request again")
+            except CrawlResponse404 as err:
+                raise Http404("{}".format(err))
+            except Exception as err:
+                import traceback; traceback.print_exc();
+                raise Http404("{}".format(err))
 
 
 def crawl_and_display(request, pk):

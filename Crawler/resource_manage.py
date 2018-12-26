@@ -97,8 +97,8 @@ class Resource(object):
             plend.pop(id_browser)
 
     def _create_new_browser(self):
-        # capa = DesiredCapabilities().CHROME
-        # capa["pageLoadStrategy"] = "none"
+        capa = DesiredCapabilities().CHROME
+        capa["pageLoadStrategy"] = "none"
         # capa["pageLoadStrategy"] = 'eager'
         from selenium.webdriver.chrome.options import Options
         croptions = Options()
@@ -111,7 +111,7 @@ class Resource(object):
 
         browser = webdriver.Chrome(
             executable_path="/usr/lib/chromium-browser/chromedriver",
-            # desired_capabilities=capa,
+            desired_capabilities=capa,
             chrome_options=croptions, )
         time.sleep(1)
         return browser
